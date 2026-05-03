@@ -1,3 +1,7 @@
+import logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 from fastapi import FastAPI, Request
 import os
 from contextlib import asynccontextmanager
@@ -21,7 +25,9 @@ telegram_app = Application.builder().token(TOKEN).build()
 @asynccontextmanager
 async def lifespan(fastapi_app: FastAPI):
     await telegram_app.initialize()
+    await telegram_app.start()
     yield
+    await telegram_app.stop()
     await telegram_app.shutdown()
 
 # VERCEL EXPECTS 'application'
@@ -274,10 +280,15 @@ telegram_app.add_handler(CallbackQueryHandler(button_callback))
 # ==================== ROUTES ====================
 @app.post("/webhook")
 async def webhook(request: Request):
-    data = await request.json()
-    update = Update.de_json(data, telegram_app.bot)
-    await telegram_app.process_update(update)
-    return {"status": "ok"}
+    try:
+        data = await request.json()
+        update = Update.de_json(data, telegram_app.bot)
+        logger.info(f"Received update: {update}")
+        await telegram_app.process_update(update)
+        return {"status": "ok"}
+    except Exception as e:
+        logger.error(f"Error processing update: {e}", exc_info=True)
+        return {"status": "error"}
 
 @app.get("/")
 async def health():

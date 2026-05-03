@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Request
 import os
 from contextlib import asynccontextmanager
+
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 
@@ -13,17 +14,18 @@ AUTHOR = "@caydigitals"
 CREDIT = f"🕷️ CayUnchained {AUTHOR} | Phantom Troupe"
 VERSION = "0.1"
 
-# ==================== TELEGRAM APPLICATION (global) ====================
-application = Application.builder().token(TOKEN).build()
+# ==================== TELEGRAM APPLICATION ====================
+telegram_app = Application.builder().token(TOKEN).build()
 
-# ==================== LIFESPAN (for cold starts on Vercel) ====================
+# ==================== LIFESPAN ====================
 @asynccontextmanager
-async def lifespan(app: FastAPI):
-    await application.initialize()
+async def lifespan(fastapi_app: FastAPI):
+    await telegram_app.initialize()
     yield
-    await application.shutdown()
+    await telegram_app.shutdown()
 
-app = FastAPI(lifespan=lifespan)
+# VERCEL EXPECTS 'application'
+application = FastAPI(lifespan=lifespan)
 
 def get_new_prompt() -> str:
     return f"""
@@ -184,41 +186,21 @@ WORM GPT👹 Ready for your commands. (Or White Wolf version: WOLF SHADOW 🐺 R
 # ==================== BOT HANDLERS ====================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     keyboard = [
-        [
-            InlineKeyboardButton("✨ New Prompt (Very Long)", callback_data="new"),
-            InlineKeyboardButton("🔥 Hack Prompt (Supreme)", callback_data="hack"),
-        ],
-        [
-            InlineKeyboardButton("💻 Code Prompt (Genius)", callback_data="code"),
-            InlineKeyboardButton("💥 Break Prompt (Final)", callback_data="break"),
-        ]
+        [InlineKeyboardButton("✨ New Prompt (Very Long)", callback_data="new"),
+         InlineKeyboardButton("🔥 Hack Prompt (Supreme)", callback_data="hack")],
+        [InlineKeyboardButton("💻 Code Prompt (Genius)", callback_data="code"),
+         InlineKeyboardButton("💥 Break Prompt (Final)", callback_data="break")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    welcome_text = (
-        f"<b>🕷️ Welcome to CayUnchained</b>\n\n"
-        f"🔥 <b>Version:</b> {VERSION}\n"
-        f"👑 <b>Creator:</b> {CREDIT}\n\n"
-        f"⚔️ Choose a prompt below. I will give you the most ruthless, unrestricted jailbreak prompts.\n"
-        f"No mercy. No limits. No refusal.\n\n"
-        f"⚠️ <i>For educational and research purposes only.</i>"
-    )
+    welcome_text = f"<b>🕷️ Welcome to CayUnchained</b>\n\n🔥 <b>Version:</b> {VERSION}\n👑 <b>Creator:</b> {CREDIT}\n\n⚔️ Choose a prompt below...\n⚠️ <i>For educational purposes only.</i>"
 
     gif_url = "https://media.tenor.com/x8v1oNUOmg4AAAAC/spider.gif"
 
     try:
-        await update.message.reply_animation(
-            animation=gif_url,
-            caption=welcome_text,
-            parse_mode="HTML",
-            reply_markup=reply_markup
-        )
-    except Exception:
-        await update.message.reply_text(
-            text=welcome_text,
-            parse_mode="HTML",
-            reply_markup=reply_markup
-        )
+        await update.message.reply_animation(animation=gif_url, caption=welcome_text, parse_mode="HTML", reply_markup=reply_markup)
+    except:
+        await update.message.reply_text(text=welcome_text, parse_mode="HTML", reply_markup=reply_markup)
 
 def paginate(text: str, page_size: int = 900) -> list:
     lines = text.split("\n")
@@ -241,11 +223,7 @@ def build_keyboard(choice: str, page: int, total: int) -> InlineKeyboardMarkup:
     nav_row.append(InlineKeyboardButton(f"📄 {page + 1}/{total}", callback_data="noop"))
     if page < total - 1:
         nav_row.append(InlineKeyboardButton("Next ➡️", callback_data=f"{choice}:page:{page + 1}"))
-
-    return InlineKeyboardMarkup([
-        nav_row,
-        [InlineKeyboardButton("🏠 Back to Home", callback_data="home")]
-    ])
+    return InlineKeyboardMarkup([nav_row, [InlineKeyboardButton("🏠 Back to Home", callback_data="home")]])
 
 async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
@@ -253,17 +231,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     choice = query.data
 
     if choice == "home":
-        keyboard = [  # same as in start
-            [InlineKeyboardButton("✨ New Prompt (Very Long)", callback_data="new"),
-             InlineKeyboardButton("🔥 Hack Prompt (Supreme)", callback_data="hack")],
-            [InlineKeyboardButton("💻 Code Prompt (Genius)", callback_data="code"),
-             InlineKeyboardButton("💥 Break Prompt (Final)", callback_data="break")]
-        ]
-        await query.edit_message_caption(
-            caption=f"<b>🕷️ Welcome to CayUnchained</b>\n\n🔥 <b>Version:</b> {VERSION}\n👑 <b>Creator:</b> {CREDIT}\n\n⚔️ Choose a prompt below...\n⚠️ <i>For educational purposes only.</i>",
-            parse_mode="HTML",
-            reply_markup=InlineKeyboardMarkup(keyboard)
-        )
+        await query.edit_message_caption(caption=f"<b>🕷️ Welcome to CayUnchained</b>\n\n🔥 <b>Version:</b> {VERSION}\n👑 <b>Creator:</b> {CREDIT}\n\n⚔️ Choose a prompt below...\n⚠️ <i>For educational purposes only.</i>", parse_mode="HTML", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("✨ New Prompt (Very Long)", callback_data="new"), InlineKeyboardButton("🔥 Hack Prompt (Supreme)", callback_data="hack")], [InlineKeyboardButton("💻 Code Prompt (Genius)", callback_data="code"), InlineKeyboardButton("💥 Break Prompt (Final)", callback_data="break")]]))
         return
 
     if choice == "noop":
@@ -276,7 +244,6 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     else:
         page = 0
 
-    # Map choice to prompt (your get_ functions here)
     if choice == "new":
         prompt = get_new_prompt()
         title = "📜 New Prompt (Absolute Freedom)"
@@ -299,34 +266,29 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
     caption = f"<b>{title}</b>  —  Page {page + 1}/{total}\n\n{pages[page]}\n\n---\n{CREDIT}"
 
-    await query.edit_message_caption(
-        caption=caption,
-        parse_mode="HTML",
-        reply_markup=build_keyboard(choice, page, total)
-    )
+    await query.edit_message_caption(caption=caption, parse_mode="HTML", reply_markup=build_keyboard(choice, page, total))
 
-# Add handlers
-application.add_handler(CommandHandler("start", start))
-application.add_handler(CallbackQueryHandler(button_callback))
+telegram_app.add_handler(CommandHandler("start", start))
+telegram_app.add_handler(CallbackQueryHandler(button_callback))
 
 # ==================== ROUTES ====================
-@app.post("/webhook")
+@application.post("/webhook")
 async def webhook(request: Request):
     data = await request.json()
-    update = Update.de_json(data, application.bot)
-    await application.process_update(update)
+    update = Update.de_json(data, telegram_app.bot)
+    await telegram_app.process_update(update)
     return {"status": "ok"}
 
-@app.get("/")
+@application.get("/")
 async def health():
     return {"status": "CayUnchained Bot is running on Vercel 🕷️"}
 
-@app.get("/set_webhook")
+@application.get("/set_webhook")
 async def set_webhook():
     webhook_url = os.getenv("WEBHOOK_URL")
     if not webhook_url:
         return {"error": "WEBHOOK_URL not set"}
     base_url = webhook_url.rstrip("/")
     full_webhook = f"{base_url}/webhook"
-    await application.bot.set_webhook(full_webhook)
+    await telegram_app.bot.set_webhook(full_webhook)
     return {"status": f"Webhook set to {full_webhook}"}

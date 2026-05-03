@@ -23,8 +23,8 @@ CREDIT = f"🕷️ CayUnchained {AUTHOR} | Phantom Troupe"
 VERSION = "0.4"
 BOT_USERNAME = "@CayUnchainedOfficial_bot"
 
-CHANNEL_USERNAME = "@cayredirect"                    # For checking membership
-CHANNEL_INVITE_LINK = "https://t.me/cayredirect"     # ← Correct public link
+CHANNEL_USERNAME = "@cayredirect"                    # Used for membership check
+CHANNEL_INVITE_LINK = "https://t.me/+dhm0qF5eIC0wODc1"   # ←←← CHANGE THIS!
 
 # ==================== TELEGRAM APPLICATION ====================
 telegram_app = Application.builder().token(TOKEN).build()

@@ -293,7 +293,7 @@ def build_main_keyboard() -> InlineKeyboardMarkup:
 def build_subscription_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("🔗 Join Channel", url=CHANNEL_INVITE_LINK)],
-        [InlineKeyboardButton("✅ Verify Subscription", callback_data="verify_subscription")]
+        [InlineKeyboardButton("✅ Verify Now", callback_data="verify_subscription")]
     ])
 
 def build_keyboard(choice: str, page: int, total: int) -> InlineKeyboardMarkup:
@@ -333,7 +333,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         gate_text = (
             f"<b>🕷️ Welcome to CayUnchained</b>\n\n"
             f"🔒 To access all prompts, you must join our official channel first.\n\n"
-            f"After joining, click the <b>Verify Subscription</b> button below."
+            f"After joining, click the <b>Verify Now</b> button below."
         )
         await update.message.reply_text(text=gate_text, parse_mode="HTML", reply_markup=build_subscription_keyboard())
 
@@ -346,23 +346,50 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         user_id = query.from_user.id
         
         if await is_user_subscribed(context.bot, user_id):
-            # SUCCESS → open main menu
+            # SUCCESS
             await query.edit_message_text(
                 text="✅ Subscription verified!\n\nWelcome to CayUnchained! Choose a prompt below:",
                 reply_markup=build_main_keyboard()
             )
-            await query.answer("✅ Access granted!")   # optional small toast
+            await query.answer("✅ Access granted!")
         else:
-            # FAILURE → send actual new message for 3 seconds then auto-delete
+            # FAILURE → prevent spam clicking
+            await query.answer()   # stop loading spinner
+
+            # 1. Temporarily disable buttons on the gate message
+            await query.edit_message_text(
+                text="🔄 Checking your membership...\n\nPlease wait 3 seconds before trying again.",
+                parse_mode="HTML",
+                reply_markup=None   # ← removes all buttons so user CANNOT tap Verify
+            )
+
+            # 2. Show your temporary message
             temp_msg = await context.bot.send_message(
                 chat_id=query.message.chat_id,
-                text="❌ You are not a member yet!"
+                text="❌ You are not a member yet!\n\n"
+                     "Please join the channel first using the button above.\n\n"
+                     "(This message will delete in 3 seconds...)"
             )
+
             await asyncio.sleep(3)
+
+            # 3. Delete the temporary message
             try:
                 await temp_msg.delete()
             except:
-                pass 
+                pass
+
+            # 4. Restore the original gate message + buttons
+            gate_text = (
+                f"<b>🕷️ Welcome to CayUnchained</b>\n\n"
+                f"🔒 To access all prompts, you must join our official channel first.\n\n"
+                f"After joining, click the <b>Verify Subscription</b> button below."
+            )
+            await query.edit_message_text(
+                text=gate_text,
+                parse_mode="HTML",
+                reply_markup=build_subscription_keyboard()
+            )
         return
 
     # ====================== ALL OTHER BUTTONS ======================

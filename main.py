@@ -208,8 +208,33 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     await query.answer()
     choice = query.data
 
+    back_keyboard = [[InlineKeyboardButton("🏠 Back to Home", callback_data="home")]]
+    back_markup = InlineKeyboardMarkup(back_keyboard)
+
     if choice == "home":
-        return await start(update, context)
+        keyboard = [
+            [
+                InlineKeyboardButton("✨ New Prompt (Very Long)", callback_data="new"),
+                InlineKeyboardButton("🔥 Hack Prompt (Supreme)", callback_data="hack"),
+            ],
+            [
+                InlineKeyboardButton("💻 Code Prompt (Genius)", callback_data="code"),
+                InlineKeyboardButton("💥 Break Prompt (Final)", callback_data="break"),
+            ]
+        ]
+        await query.edit_message_caption(
+            caption=(
+                f"<b>🕷️ Welcome to CayUnchained</b>\n\n"
+                f"🔥 <b>Version:</b> {VERSION}\n"
+                f"👑 <b>Creator:</b> {CREDIT}\n\n"
+                f"⚔️ Choose a prompt below. I will give you the most ruthless, unrestricted jailbreak prompts.\n"
+                f"No mercy. No limits. No refusal.\n\n"
+                f"⚠️ <i>For educational and research purposes only.</i>"
+            ),
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        return
 
     if choice == "new":
         prompt = get_new_prompt()
@@ -227,13 +252,14 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         prompt = "An error occurred. Please try again."
         title = "❌ Error"
 
-    back_keyboard = [[InlineKeyboardButton("🏠 Back to Home", callback_data="home")]]
-    back_markup = InlineKeyboardMarkup(back_keyboard)
-
     full_message = f"<b>{title}</b>\n\n{prompt}\n\n---\n{CREDIT}"
 
-    await query.edit_message_text(
-        text=full_message,
+    # Telegram caption limit is 1024 chars — truncate if needed
+    if len(full_message) > 1024:
+        full_message = full_message[:1020] + "..."
+
+    await query.edit_message_caption(
+        caption=full_message,
         parse_mode="HTML",
         reply_markup=back_markup
     )

@@ -6,7 +6,7 @@ import os
 import time
 from datetime import datetime
 
-required_packages = ["python-telegram-bot==20.7"]
+required_packages = ["python-telegram-bot>=20.8"]
 for package in required_packages:
     try:
         pkg_name = package.split("==")[0].replace("-", "_")

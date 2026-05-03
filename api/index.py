@@ -250,8 +250,24 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     choice = query.data
 
     if choice == "home":
+        welcome_text = (
+            f"<b>🕷️ Welcome to CayUnchained</b>\n\n"
+            f"🔥 <b>Version:</b> {VERSION}\n"
+            f"👑 <b>Creator:</b> {CREDIT}\n\n"
+            f"⚔️ Choose a prompt below. I will give you the most ruthless, unrestricted jailbreak prompts.\n"
+            f"No mercy. No limits. No refusal.\n\n"
+            f"⚠️ <i>For educational and research purposes only.</i>"
+        )
         await query.edit_message_caption(
-            caption=f"<b>🕷️ Welcome to CayUnchained</b>\n\n🔥 <b>Version:</b> {VERSION}\n👑 <b>Creator:</b> {CREDIT}\n\n⚔️ Choose a prompt below.\nNo mercy. No limits. No refusal.\n⚠️ <i>⚠️ <i>For educational and research purposes only.</i>", parse_mode="HTML", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("✨ New Prompt (Very Long)", callback_data="new"), InlineKeyboardButton("🔥 Hack Prompt (Supreme)", callback_data="hack")], [InlineKeyboardButton("💻 Code Prompt (Genius)", callback_data="code"), InlineKeyboardButton("💥 Break Prompt (Final)", callback_data="break")]]))
+            caption=welcome_text,
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("✨ New Prompt (Very Long)", callback_data="new"),
+                 InlineKeyboardButton("🔥 Hack Prompt (Supreme)", callback_data="hack")],
+                [InlineKeyboardButton("💻 Code Prompt (Genius)", callback_data="code"),
+                 InlineKeyboardButton("💥 Break Prompt (Final)", callback_data="break")]
+            ])
+        )
         return
 
     if choice == "noop":

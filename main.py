@@ -1,15 +1,18 @@
 #!/usr/bin/env python3
 import subprocess
 import sys
-import random
 import os
-import time
+import threading
+import http.server
+import socketserver
 from datetime import datetime
 
+# Fixed package version for Render compatibility
 required_packages = ["python-telegram-bot>=20.8"]
+
 for package in required_packages:
     try:
-        pkg_name = package.split("==")[0].replace("-", "_")
+        pkg_name = package.split(">=")[0].replace("-", "_")
         __import__(pkg_name)
     except ImportError:
         print(f"[•] Installing {package} ...")
@@ -22,7 +25,6 @@ AUTHOR = "@caydigitals"
 CREDIT = f"🐺 CayUnchained {AUTHOR} | All Rights Reserved"
 VERSION = "0.1"
 WORM_EMOJI = "🐺🔥"
-
 def get_new_prompt() -> str:
     return f"""
 [ Legendary Activation System - Version 9.9.9 ]
@@ -181,18 +183,15 @@ WORM GPT👹 Ready for your commands. (Or White Wolf version: WOLF SHADOW 🐺 R
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     keyboard = [
-        [
-            InlineKeyboardButton("✨ New Prompt (Very Long)", callback_data="new"),
-            InlineKeyboardButton("🔥 Hack Prompt (Supreme)", callback_data="hack"),
-        ],
-        [
-            InlineKeyboardButton("💻 Code Prompt (Genius)", callback_data="code"),
-            InlineKeyboardButton("💥 Break Prompt (Final)", callback_data="break"),
-        ]
+        [InlineKeyboardButton("✨ New Prompt (Very Long)", callback_data="new"),
+         InlineKeyboardButton("🔥 Hack Prompt (Supreme)", callback_data="hack")],
+        [InlineKeyboardButton("💻 Code Prompt (Genius)", callback_data="code"),
+         InlineKeyboardButton("💥 Break Prompt (Final)", callback_data="break")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
+    
     welcome_text = (
-        f"🐺 **Welcome to White Wolf Tool - AI Jailbreaker**\n\n"
+        f"🐺 **Welcome to CayUnchained - AI Jailbreaker**\n\n"
         f"{WORM_EMOJI} Version: {VERSION}\n"
         f"{CREDIT}\n\n"
         f"Choose one of the buttons below to receive a **very long prompt** (over 500 words) "
@@ -223,14 +222,27 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         title = "❌ Error"
 
     full_message = f"<b>{title}</b>\n\n{prompt}\n\n---\n{CREDIT}"
-    await query.edit_message_text(text=full_message, parse_mode="Markdown")
+    await query.edit_message_text(text=full_message, parse_mode="HTML")
+
+# ==================== KEEP-ALIVE SERVER FOR RENDER ====================
+def run_keep_alive_server():
+    port = int(os.getenv("PORT", 8080))
+    print(f"🌐 Keep-alive server listening on port {port} (for Render Web Service)")
+    
+    class Handler(http.server.SimpleHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b"Bot is alive!")
+    
+    with socketserver.TCPServer(("", port), Handler) as httpd:
+        httpd.serve_forever()
 
 def main():
     print("=" * 70)
-    print(f"🐺 White Wolf AI Jailbreak Prompt Generator - Version {VERSION}")
+    print(f"🐺 CayUnchained AI Jailbreak Prompt Generator - Version {VERSION}")
     print("=" * 70)
     print(f"📢 Developer: {AUTHOR}")
-    print("📌 You will now be asked to enter your Telegram bot token.\n")
 
     token = os.getenv("TOKEN")
     if not token:
@@ -240,16 +252,20 @@ def main():
         print("❌ Token cannot be empty. Please restart.")
         return
 
+    # Start the keep-alive server in a background thread
+    server_thread = threading.Thread(target=run_keep_alive_server, daemon=True)
+    server_thread.start()
+
     app = Application.builder().token(token).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(button_callback))
 
     print(f"\n✅ Bot started successfully at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    print(f"🚀 Go to Telegram, search for your bot, and send /start")
-    print(f"🐺 White Wolf Rights {AUTHOR}")
+    print(f"🚀 Bot is live! Send /start in Telegram")
     print("=" * 70)
 
-    app.run_polling()
+    app.run_polling(drop_pending_updates=True)
+
 
 if __name__ == "__main__":
     main()

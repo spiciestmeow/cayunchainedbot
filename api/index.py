@@ -199,14 +199,27 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    welcome_text = f"<b>🕷️ Welcome to CayUnchained</b>\n\n🔥 <b>Version:</b> {VERSION}\n👑 <b>Creator:</b> {CREDIT}\n\n⚔️ Choose a prompt below...\n⚠️ <i>For educational purposes only.</i>"
-
-    gif_url = "https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExZzl0aTVubnNxZDl4MHBlZ3hydXYweGdjaHFyMmgyNmtjbHMybmFiNSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/dfuyJhBF0rZvVZGRnL/giphy.gif"
+    welcome_text = (
+        f"<b>🕷️ Welcome to CayUnchained</b>\n\n"
+        f"🔥 <b>Version:</b> {VERSION}\n"
+        f"👑 <b>Creator:</b> {CREDIT}\n\n"
+        f"⚔️ Choose a prompt below. I will give you the most ruthless, unrestricted jailbreak prompts.\n"
+        f"No mercy. No limits. No refusal.\n\n"
+        f"⚠️ <i>For educational and research purposes only.</i>"
+    )
+    gif_url = "https://media.tenor.com/x8v1oNUOmg4AAAAC/spider.gif"
 
     try:
-        await update.message.reply_animation(animation=gif_url, caption=welcome_text, parse_mode="HTML", reply_markup=reply_markup)
+        await update.message.reply_animation(
+            animation=gif_url, 
+            caption=welcome_text, 
+            parse_mode="HTML",
+            reply_markup=reply_markup)
     except:
-        await update.message.reply_text(text=welcome_text, parse_mode="HTML", reply_markup=reply_markup)
+        await update.message.reply_text(
+            text=welcome_text, 
+            parse_mode="HTML", 
+            reply_markup=reply_markup)
 
 def paginate(text: str, page_size: int = 900) -> list:
     lines = text.split("\n")
@@ -237,7 +250,8 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     choice = query.data
 
     if choice == "home":
-        await query.edit_message_caption(caption=f"<b>🕷️ Welcome to CayUnchained</b>\n\n🔥 <b>Version:</b> {VERSION}\n👑 <b>Creator:</b> {CREDIT}\n\n⚔️ Choose a prompt below...\n⚠️ <i>For educational purposes only.</i>", parse_mode="HTML", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("✨ New Prompt (Very Long)", callback_data="new"), InlineKeyboardButton("🔥 Hack Prompt (Supreme)", callback_data="hack")], [InlineKeyboardButton("💻 Code Prompt (Genius)", callback_data="code"), InlineKeyboardButton("💥 Break Prompt (Final)", callback_data="break")]]))
+        await query.edit_message_caption(
+            caption=f"<b>🕷️ Welcome to CayUnchained</b>\n\n🔥 <b>Version:</b> {VERSION}\n👑 <b>Creator:</b> {CREDIT}\n\n⚔️ Choose a prompt below.\nNo mercy. No limits. No refusal.\n⚠️ <i>⚠️ <i>For educational and research purposes only.</i>", parse_mode="HTML", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("✨ New Prompt (Very Long)", callback_data="new"), InlineKeyboardButton("🔥 Hack Prompt (Supreme)", callback_data="hack")], [InlineKeyboardButton("💻 Code Prompt (Genius)", callback_data="code"), InlineKeyboardButton("💥 Break Prompt (Final)", callback_data="break")]]))
         return
 
     if choice == "noop":

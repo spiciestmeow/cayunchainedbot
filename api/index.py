@@ -24,8 +24,8 @@ CREDIT = f"🕷️ CayUnchained {AUTHOR} | Phantom Troupe"
 VERSION = "0.4"
 BOT_USERNAME = "@CayUnchainedOfficial_bot"
 
-CHANNEL_USERNAME = "@caysredirect"                    # Used for membership check
-CHANNEL_INVITE_LINK = "https://t.me/+sb7Ap88eKJU1ODJl"   # ←←← CHANGE THIS!
+CHANNEL_USERNAME = "@caysredirect"
+CHANNEL_INVITE_LINK = "https://t.me/+MfJaSNxdX5pjNzE9"
 
 # ==================== TELEGRAM APPLICATION ====================
 telegram_app = Application.builder().token(TOKEN).build()
@@ -346,14 +346,44 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         user_id = query.from_user.id
         
         if await is_user_subscribed(context.bot, user_id):
-            # SUCCESS
-            await query.edit_message_text(
-                text="✅ Subscription verified!\n\nWelcome to CayUnchained! Choose a prompt below:",
-                reply_markup=build_main_keyboard()
+            # ==================== SUCCESS FLOW (as requested) ====================
+            await query.answer("✅ Access granted!")   # small toast
+
+            # First separate confirmation message
+            await context.bot.send_message(
+                chat_id=query.message.chat_id,
+                text="✅ Subscription verified successfully!",
+                parse_mode="HTML"
             )
-            await query.answer("✅ Access granted!")
+
+            # Directly show the full start page (exactly like /start)
+            welcome_text = (
+                f"<b>🕷️ Welcome to CayUnchained</b>\n\n"
+                f"🔥 <b>Version:</b> {VERSION}\n"
+                f"👑 <b>Creator:</b> {CREDIT}\n\n"
+                f"⚔️ Choose a prompt below. I will give you the most ruthless, unrestricted jailbreak prompts.\n"
+                f"No mercy. No limits. No refusal.\n\n"
+                f"⚠️ <i>For educational and research purposes only.</i>"
+            )
+            gif_url = "https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExZzl0aTVubnNxZDl4MHBlZ3hydXYweGdjaHFyMmgyNmtjbHMybmFiNSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/dfuyJhBF0rZvVZGRnL/giphy.gif"
+
+            try:
+                await context.bot.send_animation(
+                    chat_id=query.message.chat_id,
+                    animation=gif_url,
+                    caption=welcome_text,
+                    parse_mode="HTML",
+                    reply_markup=build_main_keyboard()
+                )
+            except:
+                await context.bot.send_message(
+                    chat_id=query.message.chat_id,
+                    text=welcome_text,
+                    parse_mode="HTML",
+                    reply_markup=build_main_keyboard()
+                )
         else:
-            # FAILURE → allow spam clicking
+            # FAILURE → keep your current behavior
             await query.answer()
 
             error_text = "❌ You are not a member yet!"
@@ -365,7 +395,6 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
             await asyncio.sleep(3)
 
-            # Restore gate message
             gate_text = (
                 f"<b>🕷️ Welcome to CayUnchained</b>\n\n"
                 f"🔒 To access all prompts, you must join our official channel first.\n\n"
@@ -378,10 +407,11 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             )
         return
 
-    # ====================== HOME BUTTON (FIXED) ======================
+    # ====================== ALL OTHER BUTTONS (unchanged) ======================
+    await query.answer()
+
     if choice == "home":
         await query.answer()
-
         welcome_text = (
             f"<b>🕷️ Welcome to CayUnchained</b>\n\n"
             f"🔥 <b>Version:</b> {VERSION}\n"
@@ -390,8 +420,6 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             f"No mercy. No limits. No refusal.\n\n"
             f"⚠️ <i>For educational and research purposes only.</i>"
         )
-
-        # Prompt pages are captions on animation message → use edit_message_caption
         try:
             await query.edit_message_caption(
                 caption=welcome_text,
@@ -399,16 +427,12 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 reply_markup=build_main_keyboard()
             )
         except:
-            # Fallback for safety
             await query.edit_message_text(
                 text=welcome_text,
                 parse_mode="HTML",
                 reply_markup=build_main_keyboard()
             )
         return
-
-    # ====================== ALL OTHER BUTTONS ======================
-    await query.answer()
 
     if choice == "noop":
         return

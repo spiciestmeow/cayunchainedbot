@@ -195,7 +195,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     welcome_text = f"<b>🕷️ Welcome to CayUnchained</b>\n\n🔥 <b>Version:</b> {VERSION}\n👑 <b>Creator:</b> {CREDIT}\n\n⚔️ Choose a prompt below...\n⚠️ <i>For educational purposes only.</i>"
 
-    gif_url = "https://media.tenor.com/x8v1oNUOmg4AAAAC/spider.gif"
+    gif_url = "https://giffiles.alphacoders.com/142/142768.gif"
 
     try:
         await update.message.reply_animation(animation=gif_url, caption=welcome_text, parse_mode="HTML", reply_markup=reply_markup)

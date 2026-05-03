@@ -4,6 +4,7 @@ logger = logging.getLogger(__name__)
 
 from fastapi import FastAPI, Request
 import os
+import asyncio
 from contextlib import asynccontextmanager
 from io import BytesIO
 from datetime import datetime
@@ -338,19 +339,34 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
-    await query.answer()
     choice = query.data
 
+    # ====================== VERIFY SUBSCRIPTION ======================
     if choice == "verify_subscription":
         user_id = query.from_user.id
+        
         if await is_user_subscribed(context.bot, user_id):
+            # SUCCESS → open main menu
             await query.edit_message_text(
                 text="✅ Subscription verified!\n\nWelcome to CayUnchained! Choose a prompt below:",
                 reply_markup=build_main_keyboard()
             )
+            await query.answer("✅ Access granted!")   # optional small toast
         else:
-            await query.answer("❌ You are not a member yet. Please join the channel first!", show_alert=True)
+            # FAILURE → send actual new message for 3 seconds then auto-delete
+            temp_msg = await context.bot.send_message(
+                chat_id=query.message.chat_id,
+                text="❌ You are not a member yet!"
+            )
+            await asyncio.sleep(3)
+            try:
+                await temp_msg.delete()
+            except:
+                pass 
         return
+
+    # ====================== ALL OTHER BUTTONS ======================
+    await query.answer()   # stop loading spinner for other buttons
 
     if choice == "home":
         await start(update, context)
@@ -364,6 +380,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         await send_prompt_as_txt(query, context, prompt_key)
         return
 
+    # Pagination handling (unchanged)
     if ":page:" in choice:
         parts = choice.split(":page:")
         choice = parts[0]

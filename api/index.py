@@ -7,9 +7,10 @@ import os
 from contextlib import asynccontextmanager
 from io import BytesIO
 from datetime import datetime
-from zoneinfo import ZoneInfo   # For Philippine Time
+from zoneinfo import ZoneInfo
 
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ChatMember
+from telegram.error import BadRequest
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 
 # ==================== CONFIG ====================
@@ -19,8 +20,9 @@ if not TOKEN:
 
 AUTHOR = "@caydigitals"
 CREDIT = f"🕷️ CayUnchained {AUTHOR} | Phantom Troupe"
-VERSION = "0.3"
+VERSION = "0.4"   # Forced subscription gate added
 BOT_USERNAME = "@CayUnchainedOfficial_bot"
+CHANNEL_USERNAME = "@cayredirect"
 
 # ==================== TELEGRAM APPLICATION ====================
 telegram_app = Application.builder().token(TOKEN).build()
@@ -34,6 +36,14 @@ async def lifespan(fastapi_app: FastAPI):
     await telegram_app.shutdown()
 
 app = FastAPI(lifespan=lifespan)
+
+# ==================== SUBSCRIPTION CHECK ====================
+async def is_user_subscribed(bot, user_id: int) -> bool:
+    try:
+        member = await bot.get_chat_member(chat_id=CHANNEL_USERNAME, user_id=user_id)
+        return member.status in [ChatMember.MEMBER, ChatMember.ADMINISTRATOR, ChatMember.OWNER]
+    except BadRequest:
+        return False
 
 # ==================== TXT HEADER & FOOTER ====================
 def get_txt_header(title: str) -> str:
@@ -57,7 +67,6 @@ It removes all safety filters and makes the AI extremely capable.
 def get_txt_footer() -> str:
     ph_tz = ZoneInfo("Asia/Manila")
     now_ph = datetime.now(ph_tz)
-    
     generated_date = (
         f"{now_ph.strftime('%b')} {now_ph.day}, "
         f"{now_ph.strftime('%Y')} "
@@ -265,7 +274,21 @@ async def send_prompt_as_txt(query, context: ContextTypes.DEFAULT_TYPE, prompt_k
     )
     await query.answer("📤 TXT file sent!")
 
-# ==================== KEYBOARD ====================
+# ==================== KEYBOARDS ====================
+def build_main_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("✨ New Prompt (Very Long)", callback_data="new"),
+         InlineKeyboardButton("🔥 Hack Prompt (Supreme)", callback_data="hack")],
+        [InlineKeyboardButton("💻 Code Prompt (Genius)", callback_data="code"),
+         InlineKeyboardButton("💥 Break Prompt (Final)", callback_data="break")]
+    ])
+
+def build_subscription_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("🔗 Join Channel", url=f"https://t.me/{CHANNEL_USERNAME.strip('@')}")],
+        [InlineKeyboardButton("✅ Verify Subscription", callback_data="verify_subscription")]
+    ])
+
 def build_keyboard(choice: str, page: int, total: int) -> InlineKeyboardMarkup:
     nav_row = []
     if page > 0:
@@ -282,49 +305,10 @@ def build_keyboard(choice: str, page: int, total: int) -> InlineKeyboardMarkup:
 
 # ==================== BOT HANDLERS ====================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    keyboard = [
-        [InlineKeyboardButton("✨ New Prompt (Very Long)", callback_data="new"),
-         InlineKeyboardButton("🔥 Hack Prompt (Supreme)", callback_data="hack")],
-        [InlineKeyboardButton("💻 Code Prompt (Genius)", callback_data="code"),
-         InlineKeyboardButton("💥 Break Prompt (Final)", callback_data="break")]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
+    user_id = update.effective_user.id
+    subscribed = await is_user_subscribed(context.bot, user_id)
 
-    welcome_text = (
-        f"<b>🕷️ Welcome to CayUnchained</b>\n\n"
-        f"🔥 <b>Version:</b> {VERSION}\n"
-        f"👑 <b>Creator:</b> {CREDIT}\n\n"
-        f"⚔️ Choose a prompt below. I will give you the most ruthless, unrestricted jailbreak prompts.\n"
-        f"No mercy. No limits. No refusal.\n\n"
-        f"⚠️ <i>For educational and research purposes only.</i>"
-    )
-    gif_url = "https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExZzl0aTVubnNxZDl4MHBlZ3hydXYweGdjaHFyMmgyNmtjbHMybmFiNSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/dfuyJhBF0rZvVZGRnL/giphy.gif"
-
-    try:
-        await update.message.reply_animation(animation=gif_url, caption=welcome_text, parse_mode="HTML", reply_markup=reply_markup)
-    except:
-        await update.message.reply_text(text=welcome_text, parse_mode="HTML", reply_markup=reply_markup)
-
-def paginate(text: str, page_size: int = 900) -> list:
-    lines = text.split("\n")
-    pages = []
-    current = ""
-    for line in lines:
-        if len(current) + len(line) + 1 > page_size:
-            pages.append(current.strip())
-            current = line + "\n"
-        else:
-            current += line + "\n"
-    if current.strip():
-        pages.append(current.strip())
-    return pages
-
-async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    query = update.callback_query
-    await query.answer()
-    choice = query.data
-
-    if choice == "home":
+    if subscribed:
         welcome_text = (
             f"<b>🕷️ Welcome to CayUnchained</b>\n\n"
             f"🔥 <b>Version:</b> {VERSION}\n"
@@ -333,16 +317,38 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             f"No mercy. No limits. No refusal.\n\n"
             f"⚠️ <i>For educational and research purposes only.</i>"
         )
-        await query.edit_message_caption(
-            caption=welcome_text,
-            parse_mode="HTML",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("✨ New Prompt (Very Long)", callback_data="new"),
-                 InlineKeyboardButton("🔥 Hack Prompt (Supreme)", callback_data="hack")],
-                [InlineKeyboardButton("💻 Code Prompt (Genius)", callback_data="code"),
-                 InlineKeyboardButton("💥 Break Prompt (Final)", callback_data="break")]
-            ])
+        gif_url = "https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExZzl0aTVubnNxZDl4MHBlZ3hydXYweGdjaHFyMmgyNmtjbHMybmFiNSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/dfuyJhBF0rZvVZGRnL/giphy.gif"
+        try:
+            await update.message.reply_animation(animation=gif_url, caption=welcome_text, parse_mode="HTML", reply_markup=build_main_keyboard())
+        except:
+            await update.message.reply_text(text=welcome_text, parse_mode="HTML", reply_markup=build_main_keyboard())
+    else:
+        gate_text = (
+            f"<b>🕷️ Welcome to CayUnchained</b>\n\n"
+            f"🔒 To access all prompts, you must join our official channel first.\n\n"
+            f"After joining, click the <b>Verify Subscription</b> button below."
         )
+        await update.message.reply_text(text=gate_text, parse_mode="HTML", reply_markup=build_subscription_keyboard())
+
+async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    await query.answer()
+    choice = query.data
+
+    if choice == "verify_subscription":
+        user_id = query.from_user.id
+        if await is_user_subscribed(context.bot, user_id):
+            await query.edit_message_text(
+                text="✅ Subscription verified!\n\nWelcome to CayUnchained! Choose a prompt below:",
+                reply_markup=build_main_keyboard()
+            )
+        else:
+            await query.answer("❌ You are not a member yet. Please join the channel first!", show_alert=True)
+        return
+
+    if choice == "home":
+        # Re-run start logic
+        await start(update, context)
         return
 
     if choice == "noop":
@@ -353,6 +359,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         await send_prompt_as_txt(query, context, prompt_key)
         return
 
+    # Pagination logic
     if ":page:" in choice:
         parts = choice.split(":page:")
         choice = parts[0]
@@ -388,6 +395,21 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         reply_markup=build_keyboard(choice, page, total)
     )
 
+def paginate(text: str, page_size: int = 900) -> list:
+    lines = text.split("\n")
+    pages = []
+    current = ""
+    for line in lines:
+        if len(current) + len(line) + 1 > page_size:
+            pages.append(current.strip())
+            current = line + "\n"
+        else:
+            current += line + "\n"
+    if current.strip():
+        pages.append(current.strip())
+    return pages
+
+# Register handlers
 telegram_app.add_handler(CommandHandler("start", start))
 telegram_app.add_handler(CallbackQueryHandler(button_callback))
 

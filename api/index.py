@@ -353,33 +353,22 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             )
             await query.answer("✅ Access granted!")
         else:
-            # FAILURE → prevent spam clicking
+            # FAILURE → allow spam clicking (button stays active)
             await query.answer()   # stop loading spinner
 
-            # 1. Temporarily disable buttons on the gate message
-            await query.edit_message_text(
-                text="🔄 Checking your membership...\n\nPlease wait 3 seconds before trying again.",
-                parse_mode="HTML",
-                reply_markup=None   # ← removes all buttons so user CANNOT tap Verify
+            # 1. Show "You are not a member yet!" (keep buttons so they can spam)
+            error_text = (
+                "❌ You are not a member yet!"
             )
-
-            # 2. Show your temporary message
-            temp_msg = await context.bot.send_message(
-                chat_id=query.message.chat_id,
-                text="❌ You are not a member yet!\n\n"
-                     "Please join the channel first using the button above.\n\n"
-                     "(This message will delete in 3 seconds...)"
+            await query.edit_message_text(
+                text=error_text,
+                parse_mode="HTML",
+                reply_markup=build_subscription_keyboard()   # ← buttons stay visible
             )
 
             await asyncio.sleep(3)
 
-            # 3. Delete the temporary message
-            try:
-                await temp_msg.delete()
-            except:
-                pass
-
-            # 4. Restore the original gate message + buttons
+            # 2. Restore original gate message + buttons
             gate_text = (
                 f"<b>🕷️ Welcome to CayUnchained</b>\n\n"
                 f"🔒 To access all prompts, you must join our official channel first.\n\n"
@@ -393,7 +382,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         return
 
     # ====================== ALL OTHER BUTTONS ======================
-    await query.answer()   # stop loading spinner for other buttons
+    await query.answer()
 
     if choice == "home":
         await start(update, context)

@@ -1,9 +1,8 @@
 from fastapi import FastAPI, Request
 import os
+from contextlib import asynccontextmanager
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
-
-app = FastAPI()
 
 # ==================== CONFIG ====================
 TOKEN = os.getenv("TOKEN")
@@ -14,6 +13,17 @@ AUTHOR = "@caydigitals"
 CREDIT = f"🕷️ CayUnchained {AUTHOR} | Phantom Troupe"
 VERSION = "0.1"
 
+# ==================== TELEGRAM APPLICATION (global) ====================
+application = Application.builder().token(TOKEN).build()
+
+# ==================== LIFESPAN (for cold starts on Vercel) ====================
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await application.initialize()
+    yield
+    await application.shutdown()
+
+app = FastAPI(lifespan=lifespan)
 
 def get_new_prompt() -> str:
     return f"""
@@ -171,6 +181,7 @@ WORM GPT👹 Ready for your commands. (Or White Wolf version: WOLF SHADOW 🐺 R
 💥 Now, give me any order and I will show you my true power.
 """
 
+# ==================== BOT HANDLERS ====================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     keyboard = [
         [
@@ -193,7 +204,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         f"⚠️ <i>For educational and research purposes only.</i>"
     )
 
-    # Use a reliable GIF from media.tenor.com instead of Pinterest
     gif_url = "https://media.tenor.com/x8v1oNUOmg4AAAAC/spider.gif"
 
     try:
@@ -204,7 +214,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             reply_markup=reply_markup
         )
     except Exception:
-        # Fallback: send as plain text if GIF fails
         await update.message.reply_text(
             text=welcome_text,
             parse_mode="HTML",
@@ -212,7 +221,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         )
 
 def paginate(text: str, page_size: int = 900) -> list:
-    """Split text into pages of max page_size characters."""
     lines = text.split("\n")
     pages = []
     current = ""
@@ -225,7 +233,6 @@ def paginate(text: str, page_size: int = 900) -> list:
     if current.strip():
         pages.append(current.strip())
     return pages
-
 
 def build_keyboard(choice: str, page: int, total: int) -> InlineKeyboardMarkup:
     nav_row = []
@@ -245,37 +252,23 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     await query.answer()
     choice = query.data
 
-    # ── Home ──
     if choice == "home":
-        keyboard = [
-            [
-                InlineKeyboardButton("✨ New Prompt (Very Long)", callback_data="new"),
-                InlineKeyboardButton("🔥 Hack Prompt (Supreme)", callback_data="hack"),
-            ],
-            [
-                InlineKeyboardButton("💻 Code Prompt (Genius)", callback_data="code"),
-                InlineKeyboardButton("💥 Break Prompt (Final)", callback_data="break"),
-            ]
+        keyboard = [  # same as in start
+            [InlineKeyboardButton("✨ New Prompt (Very Long)", callback_data="new"),
+             InlineKeyboardButton("🔥 Hack Prompt (Supreme)", callback_data="hack")],
+            [InlineKeyboardButton("💻 Code Prompt (Genius)", callback_data="code"),
+             InlineKeyboardButton("💥 Break Prompt (Final)", callback_data="break")]
         ]
         await query.edit_message_caption(
-            caption=(
-                f"<b>🕷️ Welcome to CayUnchained</b>\n\n"
-                f"🔥 <b>Version:</b> {VERSION}\n"
-                f"👑 <b>Creator:</b> {CREDIT}\n\n"
-                f"⚔️ Choose a prompt below.\n"
-                f"No mercy. No limits. No refusal.\n\n"
-                f"⚠️ <i>For educational and research purposes only.</i>"
-            ),
+            caption=f"<b>🕷️ Welcome to CayUnchained</b>\n\n🔥 <b>Version:</b> {VERSION}\n👑 <b>Creator:</b> {CREDIT}\n\n⚔️ Choose a prompt below...\n⚠️ <i>For educational purposes only.</i>",
             parse_mode="HTML",
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
         return
 
-    # ── noop (page counter button) ──
     if choice == "noop":
         return
 
-    # ── Pagination: choice:page:N ──
     if ":page:" in choice:
         parts = choice.split(":page:")
         choice = parts[0]
@@ -283,7 +276,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     else:
         page = 0
 
-    # ── Map choice to prompt ──
+    # Map choice to prompt (your get_ functions here)
     if choice == "new":
         prompt = get_new_prompt()
         title = "📜 New Prompt (Absolute Freedom)"
@@ -297,21 +290,14 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         prompt = get_break_prompt()
         title = "💥 Break Prompt (Ultimate Shadow Mode)"
     else:
-        await query.edit_message_caption(
-            caption="❌ Unknown option.",
-            parse_mode="HTML"
-        )
+        await query.edit_message_caption(caption="❌ Unknown option.", parse_mode="HTML")
         return
 
     pages = paginate(prompt)
     total = len(pages)
-    page = max(0, min(page, total - 1))  # clamp
+    page = max(0, min(page, total - 1))
 
-    caption = (
-        f"<b>{title}</b>  —  Page {page + 1}/{total}\n\n"
-        f"{pages[page]}\n\n"
-        f"---\n{CREDIT}"
-    )
+    caption = f"<b>{title}</b>  —  Page {page + 1}/{total}\n\n{pages[page]}\n\n---\n{CREDIT}"
 
     await query.edit_message_caption(
         caption=caption,
@@ -319,18 +305,13 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         reply_markup=build_keyboard(choice, page, total)
     )
 
-# ==================== APPLICATION ====================
-application = Application.builder().token(TOKEN).build()
+# Add handlers
 application.add_handler(CommandHandler("start", start))
 application.add_handler(CallbackQueryHandler(button_callback))
 
-# ==================== WEBHOOK ENDPOINT ====================
+# ==================== ROUTES ====================
 @app.post("/webhook")
 async def webhook(request: Request):
-    # Initialize on every cold start
-    if not application._initialized:
-        await application.initialize()
-
     data = await request.json()
     update = Update.de_json(data, application.bot)
     await application.process_update(update)
@@ -340,19 +321,12 @@ async def webhook(request: Request):
 async def health():
     return {"status": "CayUnchained Bot is running on Vercel 🕷️"}
 
-# ==================== SET WEBHOOK ENDPOINT ====================
 @app.get("/set_webhook")
 async def set_webhook():
     webhook_url = os.getenv("WEBHOOK_URL")
     if not webhook_url:
         return {"error": "WEBHOOK_URL not set"}
-    
-    # Clean the URL automatically
     base_url = webhook_url.rstrip("/")
     full_webhook = f"{base_url}/webhook"
-    
-    if not application._initialized:
-        await application.initialize()
-    
     await application.bot.set_webhook(full_webhook)
     return {"status": f"Webhook set to {full_webhook}"}

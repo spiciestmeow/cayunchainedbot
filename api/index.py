@@ -23,7 +23,7 @@ CREDIT = f"🕷️ CayUnchained {AUTHOR} | Phantom Troupe"
 VERSION = "0.4"
 BOT_USERNAME = "@CayUnchainedOfficial_bot"
 
-CHANNEL_USERNAME = "@cayredirect"                    # Used for membership check
+CHANNEL_USERNAME = "-1003950086840"                    # Used for membership check
 CHANNEL_INVITE_LINK = "https://t.me/+dhm0qF5eIC0wODc1"   # ←←← CHANGE THIS!
 
 # ==================== TELEGRAM APPLICATION ====================

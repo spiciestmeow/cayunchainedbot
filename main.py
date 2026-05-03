@@ -184,9 +184,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    
-    gif_url = "https://i.pinimg.com/originals/5d/58/92/5d5892b576f5030b32e50c915812723d.gif"
-
     welcome_text = (
         f"<b>🕷️ Welcome to CayUnchained</b>\n\n"
         f"🔥 <b>Version:</b> {VERSION}\n"
@@ -196,21 +193,59 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         f"⚠️ <i>For educational and research purposes only.</i>"
     )
 
-    await update.message.reply_animation(
-        animation=gif_url,
-        caption=welcome_text,
-        parse_mode="HTML",
-        reply_markup=reply_markup
-    )
+    # Use a reliable GIF from media.tenor.com instead of Pinterest
+    gif_url = "https://media.tenor.com/x8v1oNUOmg4AAAAC/spider.gif"
+
+    try:
+        await update.message.reply_animation(
+            animation=gif_url,
+            caption=welcome_text,
+            parse_mode="HTML",
+            reply_markup=reply_markup
+        )
+    except Exception:
+        # Fallback: send as plain text if GIF fails
+        await update.message.reply_text(
+            text=welcome_text,
+            parse_mode="HTML",
+            reply_markup=reply_markup
+        )
+
+def paginate(text: str, page_size: int = 900) -> list:
+    """Split text into pages of max page_size characters."""
+    lines = text.split("\n")
+    pages = []
+    current = ""
+    for line in lines:
+        if len(current) + len(line) + 1 > page_size:
+            pages.append(current.strip())
+            current = line + "\n"
+        else:
+            current += line + "\n"
+    if current.strip():
+        pages.append(current.strip())
+    return pages
+
+
+def build_keyboard(choice: str, page: int, total: int) -> InlineKeyboardMarkup:
+    nav_row = []
+    if page > 0:
+        nav_row.append(InlineKeyboardButton("⬅️ Prev", callback_data=f"{choice}:page:{page - 1}"))
+    nav_row.append(InlineKeyboardButton(f"📄 {page + 1}/{total}", callback_data="noop"))
+    if page < total - 1:
+        nav_row.append(InlineKeyboardButton("Next ➡️", callback_data=f"{choice}:page:{page + 1}"))
+
+    return InlineKeyboardMarkup([
+        nav_row,
+        [InlineKeyboardButton("🏠 Back to Home", callback_data="home")]
+    ])
 
 async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     await query.answer()
     choice = query.data
 
-    back_keyboard = [[InlineKeyboardButton("🏠 Back to Home", callback_data="home")]]
-    back_markup = InlineKeyboardMarkup(back_keyboard)
-
+    # ── Home ──
     if choice == "home":
         keyboard = [
             [
@@ -227,7 +262,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 f"<b>🕷️ Welcome to CayUnchained</b>\n\n"
                 f"🔥 <b>Version:</b> {VERSION}\n"
                 f"👑 <b>Creator:</b> {CREDIT}\n\n"
-                f"⚔️ Choose a prompt below. I will give you the most ruthless, unrestricted jailbreak prompts.\n"
+                f"⚔️ Choose a prompt below.\n"
                 f"No mercy. No limits. No refusal.\n\n"
                 f"⚠️ <i>For educational and research purposes only.</i>"
             ),
@@ -236,6 +271,19 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         )
         return
 
+    # ── noop (page counter button) ──
+    if choice == "noop":
+        return
+
+    # ── Pagination: choice:page:N ──
+    if ":page:" in choice:
+        parts = choice.split(":page:")
+        choice = parts[0]
+        page = int(parts[1])
+    else:
+        page = 0
+
+    # ── Map choice to prompt ──
     if choice == "new":
         prompt = get_new_prompt()
         title = "📜 New Prompt (Absolute Freedom)"
@@ -249,19 +297,23 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         prompt = get_break_prompt()
         title = "💥 Break Prompt (Ultimate Shadow Mode)"
     else:
-        prompt = "An error occurred. Please try again."
-        title = "❌ Error"
+        await query.edit_message_caption(caption="❌ Unknown option.")
+        return
 
-    full_message = f"<b>{title}</b>\n\n{prompt}\n\n---\n{CREDIT}"
+    pages = paginate(prompt)
+    total = len(pages)
+    page = max(0, min(page, total - 1))  # clamp
 
-    # Telegram caption limit is 1024 chars — truncate if needed
-    if len(full_message) > 1024:
-        full_message = full_message[:1020] + "..."
+    caption = (
+        f"<b>{title}</b>  —  Page {page + 1}/{total}\n\n"
+        f"{pages[page]}\n\n"
+        f"---\n{CREDIT}"
+    )
 
     await query.edit_message_caption(
-        caption=full_message,
+        caption=caption,
         parse_mode="HTML",
-        reply_markup=back_markup
+        reply_markup=build_keyboard(choice, page, total)
     )
 
 # ==================== APPLICATION ====================
@@ -281,11 +333,9 @@ async def webhook(request: Request):
     await application.process_update(update)
     return {"status": "ok"}
 
-
 @app.get("/")
 async def health():
     return {"status": "CayUnchained Bot is running on Vercel 🕷️"}
-
 
 # ==================== SET WEBHOOK ENDPOINT ====================
 @app.get("/set_webhook")

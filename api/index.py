@@ -346,17 +346,23 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         user_id = query.from_user.id
         
         if await is_user_subscribed(context.bot, user_id):
-            # ==================== SUCCESS FLOW (as requested) ====================
+            # ==================== SUCCESS FLOW ====================
             await query.answer("✅ Access granted!")   # small toast
 
-            # First separate confirmation message
+            # 1. Delete the old gate message (this is what you asked for)
+            try:
+                await query.message.delete()
+            except:
+                pass  # in case it was already deleted
+
+            # 2. Send confirmation message
             await context.bot.send_message(
                 chat_id=query.message.chat_id,
                 text="✅ Subscription verified successfully!",
                 parse_mode="HTML"
             )
 
-            # Directly show the full start page (exactly like /start)
+            # 3. Send the full start page (exactly like /start)
             welcome_text = (
                 f"<b>🕷️ Welcome to CayUnchained</b>\n\n"
                 f"🔥 <b>Version:</b> {VERSION}\n"
@@ -393,7 +399,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 reply_markup=build_subscription_keyboard()
             )
 
-            await asyncio.sleep(3)
+            await asyncio.sleep(1)
 
             gate_text = (
                 f"<b>🕷️ Welcome to CayUnchained</b>\n\n"

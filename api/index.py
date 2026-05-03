@@ -353,26 +353,23 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             )
             await query.answer("✅ Access granted!")
         else:
-            # FAILURE → allow spam clicking (button stays active)
-            await query.answer()   # stop loading spinner
+            # FAILURE → allow spam clicking
+            await query.answer()
 
-            # 1. Show "You are not a member yet!" (keep buttons so they can spam)
-            error_text = (
-                "❌ You are not a member yet!"
-            )
+            error_text = "❌ You are not a member yet!"
             await query.edit_message_text(
                 text=error_text,
                 parse_mode="HTML",
-                reply_markup=build_subscription_keyboard()   # ← buttons stay visible
+                reply_markup=build_subscription_keyboard()
             )
 
             await asyncio.sleep(3)
 
-            # 2. Restore original gate message + buttons
+            # Restore gate message
             gate_text = (
                 f"<b>🕷️ Welcome to CayUnchained</b>\n\n"
                 f"🔒 To access all prompts, you must join our official channel first.\n\n"
-                f"After joining, click the <b>Verify Subscription</b> button below."
+                f"After joining, click the <b>✅ Verify Now</b> button below."
             )
             await query.edit_message_text(
                 text=gate_text,
@@ -381,12 +378,37 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             )
         return
 
+    # ====================== HOME BUTTON (FIXED) ======================
+    if choice == "home":
+        await query.answer()
+
+        welcome_text = (
+            f"<b>🕷️ Welcome to CayUnchained</b>\n\n"
+            f"🔥 <b>Version:</b> {VERSION}\n"
+            f"👑 <b>Creator:</b> {CREDIT}\n\n"
+            f"⚔️ Choose a prompt below. I will give you the most ruthless, unrestricted jailbreak prompts.\n"
+            f"No mercy. No limits. No refusal.\n\n"
+            f"⚠️ <i>For educational and research purposes only.</i>"
+        )
+
+        # Prompt pages are captions on animation message → use edit_message_caption
+        try:
+            await query.edit_message_caption(
+                caption=welcome_text,
+                parse_mode="HTML",
+                reply_markup=build_main_keyboard()
+            )
+        except:
+            # Fallback for safety
+            await query.edit_message_text(
+                text=welcome_text,
+                parse_mode="HTML",
+                reply_markup=build_main_keyboard()
+            )
+        return
+
     # ====================== ALL OTHER BUTTONS ======================
     await query.answer()
-
-    if choice == "home":
-        await start(update, context)
-        return
 
     if choice == "noop":
         return
@@ -396,7 +418,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         await send_prompt_as_txt(query, context, prompt_key)
         return
 
-    # Pagination handling (unchanged)
+    # Pagination handling
     if ":page:" in choice:
         parts = choice.split(":page:")
         choice = parts[0]

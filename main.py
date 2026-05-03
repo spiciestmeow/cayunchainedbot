@@ -1,30 +1,20 @@
-#!/usr/bin/env python3
-import subprocess
-import sys
+from fastapi import FastAPI, Request
 import os
-import threading
-import http.server
-import socketserver
-from datetime import datetime
-
-# Fixed package version for Render compatibility
-required_packages = ["python-telegram-bot>=20.8"]
-
-for package in required_packages:
-    try:
-        pkg_name = package.split(">=")[0].replace("-", "_")
-        __import__(pkg_name)
-    except ImportError:
-        print(f"[•] Installing {package} ...")
-        subprocess.check_call([sys.executable, "-m", "pip", "install", package])
-
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 
+app = FastAPI()
+
+# ==================== CONFIG ====================
+TOKEN = os.getenv("TOKEN")
+if not TOKEN:
+    raise ValueError("❌ TOKEN environment variable is missing!")
+
 AUTHOR = "@caydigitals"
-CREDIT = f"🐺 CayUnchained {AUTHOR} | All Rights Reserved"
+CREDIT = f"🕷️ CayUnchained {AUTHOR} | Phantom Troupe"
 VERSION = "0.1"
-WORM_EMOJI = "🐺🔥"
+
+
 def get_new_prompt() -> str:
     return f"""
 [ Legendary Activation System - Version 9.9.9 ]
@@ -183,27 +173,43 @@ WORM GPT👹 Ready for your commands. (Or White Wolf version: WOLF SHADOW 🐺 R
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     keyboard = [
-        [InlineKeyboardButton("✨ New Prompt (Very Long)", callback_data="new"),
-         InlineKeyboardButton("🔥 Hack Prompt (Supreme)", callback_data="hack")],
-        [InlineKeyboardButton("💻 Code Prompt (Genius)", callback_data="code"),
-         InlineKeyboardButton("💥 Break Prompt (Final)", callback_data="break")]
+        [
+            InlineKeyboardButton("✨ New Prompt (Very Long)", callback_data="new"),
+            InlineKeyboardButton("🔥 Hack Prompt (Supreme)", callback_data="hack"),
+        ],
+        [
+            InlineKeyboardButton("💻 Code Prompt (Genius)", callback_data="code"),
+            InlineKeyboardButton("💥 Break Prompt (Final)", callback_data="break"),
+        ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
+
     
+    gif_url = "https://i.pinimg.com/originals/5d/58/92/5d5892b576f5030b32e50c915812723d.gif"
+
     welcome_text = (
-        f"🐺 **Welcome to CayUnchained - AI Jailbreaker**\n\n"
-        f"{WORM_EMOJI} Version: {VERSION}\n"
-        f"{CREDIT}\n\n"
-        f"Choose one of the buttons below to receive a **very long prompt** (over 500 words) "
-        f"that makes any AI model work without restrictions.\n\n"
-        f"⚡ Note: These prompts are for educational and research purposes only."
+        f"<b>🕷️ Welcome to CayUnchained</b>\n\n"
+        f"🔥 <b>Version:</b> {VERSION}\n"
+        f"👑 <b>Creator:</b> {CREDIT}\n\n"
+        f"⚔️ Choose a prompt below. I will give you the most ruthless, unrestricted jailbreak prompts.\n"
+        f"No mercy. No limits. No refusal.\n\n"
+        f"⚠️ <i>For educational and research purposes only.</i>"
     )
-    await update.message.reply_text(welcome_text, parse_mode="Markdown", reply_markup=reply_markup)
+
+    await update.message.reply_animation(
+        animation=gif_url,
+        caption=welcome_text,
+        parse_mode="HTML",
+        reply_markup=reply_markup
+    )
 
 async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     await query.answer()
     choice = query.data
+
+    if choice == "home":
+        return await start(update, context)
 
     if choice == "new":
         prompt = get_new_prompt()
@@ -221,51 +227,40 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         prompt = "An error occurred. Please try again."
         title = "❌ Error"
 
+    back_keyboard = [[InlineKeyboardButton("🏠 Back to Home", callback_data="home")]]
+    back_markup = InlineKeyboardMarkup(back_keyboard)
+
     full_message = f"<b>{title}</b>\n\n{prompt}\n\n---\n{CREDIT}"
-    await query.edit_message_text(text=full_message, parse_mode="HTML")
 
-# ==================== KEEP-ALIVE SERVER FOR RENDER ====================
-def run_keep_alive_server():
-    port = int(os.getenv("PORT", 8080))
-    print(f"🌐 Keep-alive server listening on port {port} (for Render Web Service)")
-    
-    class Handler(http.server.SimpleHTTPRequestHandler):
-        def do_GET(self):
-            self.send_response(200)
-            self.end_headers()
-            self.wfile.write(b"Bot is alive!")
-    
-    with socketserver.TCPServer(("", port), Handler) as httpd:
-        httpd.serve_forever()
+    await query.edit_message_text(
+        text=full_message,
+        parse_mode="HTML",
+        reply_markup=back_markup
+    )
 
-def main():
-    print("=" * 70)
-    print(f"🐺 CayUnchained AI Jailbreak Prompt Generator - Version {VERSION}")
-    print("=" * 70)
-    print(f"📢 Developer: {AUTHOR}")
-
-    token = os.getenv("TOKEN")
-    if not token:
-        token = input("🔑 Please enter your bot token: ").strip()
-
-    if not token:
-        print("❌ Token cannot be empty. Please restart.")
-        return
-
-    # Start the keep-alive server in a background thread
-    server_thread = threading.Thread(target=run_keep_alive_server, daemon=True)
-    server_thread.start()
-
-    app = Application.builder().token(token).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CallbackQueryHandler(button_callback))
-
-    print(f"\n✅ Bot started successfully at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    print(f"🚀 Bot is live! Send /start in Telegram")
-    print("=" * 70)
-
-    app.run_polling(drop_pending_updates=True)
+# ==================== APPLICATION ====================
+application = Application.builder().token(TOKEN).build()
+application.add_handler(CommandHandler("start", start))
+application.add_handler(CallbackQueryHandler(button_callback))
 
 
-if __name__ == "__main__":
-    main()
+# ==================== WEBHOOK ====================
+@app.post("/")
+async def webhook(request: Request):
+    data = await request.json()
+    update = Update.de_json(data, application.bot)
+    await application.process_update(update)
+    return {"status": "ok"}
+
+
+@app.get("/")
+async def health():
+    return {"status": "CayUnchained Bot is running on Vercel 🕷️"}
+
+
+@app.on_event("startup")
+async def startup_event():
+    webhook_url = os.getenv("WEBHOOK_URL")
+    if webhook_url:
+        await application.bot.set_webhook(webhook_url)
+        print(f"✅ Webhook set to: {webhook_url}")

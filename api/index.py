@@ -23,7 +23,7 @@ CREDIT = f"🕷️ CayUnchained {AUTHOR} | Phantom Troupe"
 VERSION = "0.4"
 BOT_USERNAME = "@CayUnchainedOfficial_bot"
 
-CHANNEL_USERNAME = "-1003950086840"                    # Used for membership check
+CHANNEL_USERNAME = "@cayredirect"                    # Used for membership check
 CHANNEL_INVITE_LINK = "https://t.me/+dhm0qF5eIC0wODc1"   # ←←← CHANGE THIS!
 
 # ==================== TELEGRAM APPLICATION ====================
@@ -45,10 +45,10 @@ async def is_user_subscribed(bot, user_id: int) -> bool:
         member = await bot.get_chat_member(chat_id=CHANNEL_USERNAME, user_id=user_id)
         return member.status in [ChatMember.MEMBER, ChatMember.ADMINISTRATOR, ChatMember.OWNER]
     except BadRequest as e:
-        logger.error(f"getChatMember failed: {e}")
+        logger.error(f"getChatMember BadRequest: {e}")  # Will show exact reason
         return False
     except Exception as e:
-        logger.error(f"Subscription check error: {e}")
+        logger.error(f"Subscription check error: {type(e).__name__}: {e}")
         return False
 
 # ==================== TXT HEADER & FOOTER ====================

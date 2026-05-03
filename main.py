@@ -243,10 +243,13 @@ application = Application.builder().token(TOKEN).build()
 application.add_handler(CommandHandler("start", start))
 application.add_handler(CallbackQueryHandler(button_callback))
 
-
-# ==================== WEBHOOK ENDPOINT (Updated for Vercel) ====================
+# ==================== WEBHOOK ENDPOINT ====================
 @app.post("/webhook")
 async def webhook(request: Request):
+    # Initialize on every cold start
+    if not application._initialized:
+        await application.initialize()
+
     data = await request.json()
     update = Update.de_json(data, application.bot)
     await application.process_update(update)
@@ -258,9 +261,13 @@ async def health():
     return {"status": "CayUnchained Bot is running on Vercel 🕷️"}
 
 
-@app.on_event("startup")
-async def startup_event():
+# ==================== SET WEBHOOK ENDPOINT ====================
+@app.get("/set_webhook")
+async def set_webhook():
     webhook_url = os.getenv("WEBHOOK_URL")
-    if webhook_url:
-        await application.bot.set_webhook(webhook_url + "/webhook")
-        print(f"✅ Webhook set to: {webhook_url}/webhook")
+    if not webhook_url:
+        return {"error": "WEBHOOK_URL not set"}
+    if not application._initialized:
+        await application.initialize()
+    await application.bot.set_webhook(webhook_url + "/webhook")
+    return {"status": f"Webhook set to {webhook_url}/webhook"}

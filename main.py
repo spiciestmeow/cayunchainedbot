@@ -244,8 +244,8 @@ application.add_handler(CommandHandler("start", start))
 application.add_handler(CallbackQueryHandler(button_callback))
 
 
-# ==================== WEBHOOK ====================
-@app.post("/")
+# ==================== WEBHOOK ENDPOINT (Updated for Vercel) ====================
+@app.post("/webhook")
 async def webhook(request: Request):
     data = await request.json()
     update = Update.de_json(data, application.bot)
@@ -262,5 +262,5 @@ async def health():
 async def startup_event():
     webhook_url = os.getenv("WEBHOOK_URL")
     if webhook_url:
-        await application.bot.set_webhook(webhook_url)
-        print(f"✅ Webhook set to: {webhook_url}")
+        await application.bot.set_webhook(webhook_url + "/webhook")
+        print(f"✅ Webhook set to: {webhook_url}/webhook")

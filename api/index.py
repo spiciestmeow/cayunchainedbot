@@ -20,9 +20,11 @@ if not TOKEN:
 
 AUTHOR = "@caydigitals"
 CREDIT = f"🕷️ CayUnchained {AUTHOR} | Phantom Troupe"
-VERSION = "0.4"   # Forced subscription gate added
+VERSION = "0.4"
 BOT_USERNAME = "@CayUnchainedOfficial_bot"
-CHANNEL_USERNAME = "@cayredirect"
+
+CHANNEL_USERNAME = "@cayredirect"                    # For checking membership
+CHANNEL_INVITE_LINK = "https://t.me/cayredirect"     # ← Correct public link
 
 # ==================== TELEGRAM APPLICATION ====================
 telegram_app = Application.builder().token(TOKEN).build()
@@ -42,7 +44,11 @@ async def is_user_subscribed(bot, user_id: int) -> bool:
     try:
         member = await bot.get_chat_member(chat_id=CHANNEL_USERNAME, user_id=user_id)
         return member.status in [ChatMember.MEMBER, ChatMember.ADMINISTRATOR, ChatMember.OWNER]
-    except BadRequest:
+    except BadRequest as e:
+        logger.error(f"getChatMember failed: {e}")
+        return False
+    except Exception as e:
+        logger.error(f"Subscription check error: {e}")
         return False
 
 # ==================== TXT HEADER & FOOTER ====================
@@ -285,7 +291,7 @@ def build_main_keyboard() -> InlineKeyboardMarkup:
 
 def build_subscription_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("🔗 Join Channel", url=f"https://t.me/{CHANNEL_USERNAME.strip('@')}")],
+        [InlineKeyboardButton("🔗 Join Channel", url=CHANNEL_INVITE_LINK)],
         [InlineKeyboardButton("✅ Verify Subscription", callback_data="verify_subscription")]
     ])
 
@@ -347,7 +353,6 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         return
 
     if choice == "home":
-        # Re-run start logic
         await start(update, context)
         return
 
@@ -359,7 +364,6 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         await send_prompt_as_txt(query, context, prompt_key)
         return
 
-    # Pagination logic
     if ":page:" in choice:
         parts = choice.split(":page:")
         choice = parts[0]

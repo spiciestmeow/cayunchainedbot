@@ -284,10 +284,10 @@ async def send_prompt_as_txt(query, context: ContextTypes.DEFAULT_TYPE, prompt_k
 # ==================== KEYBOARDS ====================
 def build_main_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("✨ New Prompt (Very Long)", callback_data="new"),
-         InlineKeyboardButton("🔥 Hack Prompt (Supreme)", callback_data="hack")],
-        [InlineKeyboardButton("💻 Code Prompt (Genius)", callback_data="code"),
-         InlineKeyboardButton("💥 Break Prompt (Final)", callback_data="break")]
+        [InlineKeyboardButton("✨ New Prompt", callback_data="new"),
+         InlineKeyboardButton("🔥 Hack Prompt", callback_data="hack")],
+        [InlineKeyboardButton("💻 Code Prompt", callback_data="code"),
+         InlineKeyboardButton("💥 Break Prompt", callback_data="break")]
     ])
 
 def build_subscription_keyboard() -> InlineKeyboardMarkup:
